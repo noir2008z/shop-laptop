@@ -1,17 +1,14 @@
+/* Thu vien can thiet cho nhap/xuat, chuoi, file va thoi gian. */
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <ctype.h>
 #include <time.h>
 #define MAX_LAPTOPS 200
-#define MAX_FAVORITES 200
-#define MAX_HISTORY 200
 #define MAX_CRITERIA 20
 #define NAME_LEN 80
 #define TEXT_LEN 160
 #define FILE_LAPTOPS "laptops.txt"
-#define FILE_FAVORITES "favorites.txt"
-#define FILE_HISTORY "history.txt"
 #define FILE_CRITERIA "criteria.txt"
 typedef struct  {
     int id;
@@ -23,13 +20,6 @@ typedef struct  {
 }
 Laptop;
 typedef struct  {
-    int laptopId;
-    char field[NAME_LEN], usage[NAME_LEN], reason[TEXT_LEN];
-    long long budget, finalPrice;
-    char dateTime[32];
-}
-History;
-typedef struct  {
     char key[NAME_LEN];
     char value[TEXT_LEN];
     int mandatory;
@@ -37,10 +27,8 @@ typedef struct  {
 }
 Criterion;
 Laptop laptops[MAX_LAPTOPS];
-int favorites[MAX_FAVORITES], favoriteCount = 0;
-History histories[MAX_HISTORY];
 Criterion criteria[MAX_CRITERIA];
-int laptopCount = 0, historyCount = 0, criterionCount = 0;
+int laptopCount = 0, criterionCount = 0;
 int nextId = 1;
 void trimNewline(char *s)  {
     s[strcspn(s, "\r\n")] = '\0';
@@ -188,68 +176,6 @@ int loadLaptops(void)  {
     fclose(f);
     return loaded;
 }
-int saveFavorites(void)  {
-    FILE *f=fopen(FILE_FAVORITES,"w");
-    int i;
-    if(!f) return 0;
-    for(i=0;i<favoriteCount;i++) fprintf(f,"%d\n",favorites[i]);
-    fclose(f);
-    return 1;
-}
-int loadFavorites(void)  {
-    FILE *f=fopen(FILE_FAVORITES,"r");
-    int id,n=0;
-    if(!f) return 0;
-    favoriteCount=0;
-    while(fscanf(f,"%d",&id)==1 && favoriteCount<MAX_FAVORITES) favorites[favoriteCount++]=id,n++;
-    fclose(f);
-    return n;
-}
-int saveHistory(void)  {
-    FILE *f=fopen(FILE_HISTORY,"w");
-    int i;
-    if(!f) return 0;
-    for(i=0;i<historyCount;i++)  {
-        History *h=&histories[i];
-        fprintf(f,"%d|%s|%s|%s|%lld|%lld|%s\n",h->laptopId,h->field,h->usage,h->reason,h->budget,h->finalPrice,h->dateTime);
-    }
-    fclose(f);
-    return 1;
-}
-int loadHistory(void)  {
-    FILE *f=fopen(FILE_HISTORY,"r");
-    char line[900];
-    int n=0;
-    if(!f) return 0;
-    historyCount=0;
-    while(fgets(line,sizeof(line),f)&&historyCount<MAX_HISTORY)  {
-        History h;
-        char *p;
-        memset(&h,0,sizeof(h));
-        trimNewline(line);
-        p=strtok(line,"|");
-        if(!p) continue;
-        h.laptopId=atoi(p);
-#define HISTSTR(field) do { p=strtok(NULL,"|"); if(!p) goto bad_hist; snprintf(h.field,sizeof(h.field),"%s",p); } while(0)
-        HISTSTR(field);
-        HISTSTR(usage);
-        HISTSTR(reason);
-        p=strtok(NULL,"|");
-        if(!p) goto bad_hist;
-        h.budget=atoll(p);
-        p=strtok(NULL,"|");
-        if(!p) goto bad_hist;
-        h.finalPrice=atoll(p);
-        HISTSTR(dateTime);
-        histories[historyCount++]=h;
-        n++;
-        continue;
-        bad_hist: ;
-#undef HISTSTR
-    }
-    fclose(f);
-    return n;
-}
 int saveCriteria(void)  {
     FILE *f=fopen(FILE_CRITERIA,"w");
     int i;
@@ -288,58 +214,30 @@ int loadCriteria(void)  {
     return n;
 }
 void printLaptop(const Laptop *l)  {
-    printf("\n[%d] %s (%s)\n  CPU: %s | GPU: %s\n  RAM: %dGB | SSD: %dGB | Gia tham khao: %lld VND\n  Man hinh: %s | Pin: %s | Khoi luong: %s\n  Link tham khao: %s\n",
+    printf("\nMa san pham (ID - ma nhan dien rieng cua laptop): %d\nTen san pham: %s (%s)\n  CPU: %s | GPU: %s\n  RAM: %dGB | SSD: %dGB | Gia tham khao: %lld VND\n  Man hinh: %s | Pin: %s | Khoi luong: %s\n  Link tham khao: %s\n",
     l->id,l->name,l->brand,l->cpu,l->gpu,l->ramGB,l->ssdGB,l->price,l->screen,l->battery,l->weight,l->url);
 }
 void listLaptops(void)  {
     int i, count=0;
     puts("\n===== DANH SACH LAPTOP =====");
+    puts("Luu y: Ma san pham (ID) la ma rieng de nhan dien va tim dung laptop.");
     for(i=0;i<laptopCount;i++) if(laptops[i].active) printLaptop(&laptops[i]),count++;
     if(!count) puts("Danh sach trong.");
     printf("\nTong: %d laptop\n",count);
 }
 void saveAll(void)  {
     saveLaptops();
-    saveFavorites();
-    saveHistory();
     saveCriteria();
 }
 void loadAll(void)  {
-    int n;
-    n=loadLaptops();
-    if(n==0)  {
-        laptopCount=0;
-        nextId=1;
+    int n = loadLaptops();
+    if(n == 0) {
+        laptopCount = 0;
+        nextId = 1;
         seedData();
         saveLaptops();
     }
-    loadFavorites();
-    loadHistory();
     loadCriteria();
-}
-int isFavorite(int id)  {
-    int i;
-    for(i=0;i<favoriteCount;i++) if(favorites[i]==id) return 1;
-    return 0;
-}
-void addHistory(int id, const char *field, const char *usage, const char *reason, long long budget, long long finalPrice)  {
-    History *h;
-    time_t now=time(NULL);
-    struct tm *t=localtime(&now);
-    if(historyCount>=MAX_HISTORY)  {
-        memmove(histories,histories+1,sizeof(History)*(MAX_HISTORY-1));
-        historyCount--;
-    }
-    h=&histories[historyCount++];
-    memset(h,0,sizeof(*h));
-    h->laptopId=id;
-    snprintf(h->field,sizeof(h->field),"%s",field);
-    snprintf(h->usage,sizeof(h->usage),"%s",usage);
-    snprintf(h->reason,sizeof(h->reason),"%s",reason);
-    h->budget=budget;
-    h->finalPrice=finalPrice;
-    if(t) strftime(h->dateTime,sizeof(h->dateTime),"%Y-%m-%d %H:%M:%S",t);
-    saveHistory();
 }
 int matchesCriterion(const Laptop *l, const Criterion *c)  {
     if(!containsIgnoreCase(c->key,"brand") && !containsIgnoreCase(c->key,"hang"))  {
@@ -437,8 +335,6 @@ void consult(void)  {
     printf("Diem phu hop tham khao: %d\n",bestScore);
     printf("Ly do: gia nam trong ngan sach; RAM %dGB, SSD %dGB; GPU %s; phu hop voi nhu cau %s va nganh %s.\n",
     laptops[best].ramGB,laptops[best].ssdGB,laptops[best].gpu,uses[usage],fields[field]);
-    addHistory(laptops[best].id,fields[field],uses[usage],"De xuat tu quy tac diem phu hop",budget,laptops[best].price);
-    puts("Da ghi ket qua vao lich su tu van.");
 }
 void searchLaptops(void)  {
     char q[TEXT_LEN];
@@ -480,6 +376,8 @@ void inputLaptopFields(Laptop *l, int isNew)  {
         l->id=nextId++;
         l->active=1;
     }
+    if(isNew) printf("Ma san pham (ID) duoc tao tu dong: %d\n",l->id);
+    if(isNew) puts("Hay ghi nho ma nay de sua, xoa hoac so sanh dung san pham.");
     readLine("Ten laptop: ",l->name,sizeof(l->name));
     readLine("Hang: ",l->brand,sizeof(l->brand));
     readLine("CPU: ",l->cpu,sizeof(l->cpu));
@@ -502,7 +400,7 @@ void addLaptop(void)  {
     puts("Da them laptop.");
 }
 void editLaptop(void)  {
-    int id=readInt("Nhap ID can sua: ",1,1000000000);
+    int id=readInt("Nhap ma san pham (ID) can sua: ",1,1000000000);
     Laptop *l=findLaptop(id);
     if(!l)  {
         puts("Khong tim thay ID.");
@@ -519,7 +417,7 @@ void editLaptop(void)  {
     puts("Da cap nhat.");
 }
 void deleteLaptop(void)  {
-    int id=readInt("Nhap ID can xoa: ",1,1000000000);
+    int id=readInt("Nhap ma san pham (ID) can xoa: ",1,1000000000);
     Laptop *l=findLaptop(id);
     if(!l)  {
         puts("Khong tim thay ID.");
@@ -530,8 +428,8 @@ void deleteLaptop(void)  {
     puts("Da xoa (an khoi danh sach).");
 }
 void compareLaptops(void)  {
-    int a=readInt("Nhap ID laptop thu nhat: ",1,1000000000);
-    int b=readInt("Nhap ID laptop thu hai: ",1,1000000000);
+    int a=readInt("Nhap ma san pham (ID) thu nhat: ",1,1000000000);
+    int b=readInt("Nhap ma san pham (ID) thu hai: ",1,1000000000);
     Laptop *x=findLaptop(a),*y=findLaptop(b);
     if(!x||!y)  {
         puts("ID khong hop le.");
@@ -546,51 +444,6 @@ void compareLaptops(void)  {
     x->ssdGB==y->ssdGB?"Bang nhau":(x->ssdGB>y->ssdGB?"Laptop 1":"Laptop 2"),
     x->price==y->price?"Bang nhau":(x->price<y->price?"Laptop 1":"Laptop 2"));
 }
-void manageFavorites(void)  {
-    int ch,i,id;
-    do  {
-        puts("\n--- YEU THICH ---\n1. Xem danh sach\n2. Them yeu thich\n3. Xoa khoi yeu thich\n0. Quay lai");
-        ch=readInt("Chon: ",0,3);
-        if(ch==1)  {
-            for(i=0;i<favoriteCount;i++)  {
-                Laptop *l=findLaptop(favorites[i]);
-                if(l) printLaptop(l);
-            }
-            if(!favoriteCount) puts("Chua co laptop yeu thich.");
-        } else if(ch==2)  {
-            id=readInt("Nhap ID: ",1,1000000000);
-            if(!findLaptop(id)) puts("ID khong ton tai.");
-            else if(isFavorite(id)) puts("Da co trong yeu thich.");
-            else if(favoriteCount<MAX_FAVORITES)  {
-                favorites[favoriteCount++]=id;
-                saveFavorites();
-                puts("Da them.");
-            }
-            else puts("Danh sach yeu thich da day.");
-        } else if(ch==3)  {
-            id=readInt("Nhap ID can bo: ",1,1000000000);
-            for(i=0;i<favoriteCount;i++) if(favorites[i]==id) break;
-            if(i==favoriteCount) puts("Khong tim thay.");
-            else  {
-                memmove(&favorites[i],&favorites[i+1],sizeof(int)*(favoriteCount-i-1));
-                favoriteCount--;
-                saveFavorites();
-                puts("Da xoa.");
-            }
-        }
-    } while(ch!=0);
-}
-void viewHistory(void)  {
-    int i;
-    puts("\n===== LICH SU TU VAN =====");
-    for(i=0;i<historyCount;i++)  {
-        History *h=&histories[i];
-        Laptop *l=findLaptop(h->laptopId);
-        printf("%d) %s | Nganh: %s | Nhu cau: %s | Ngan sach: %lld | Gia goi y: %lld | %s\n",
-        i+1,h->dateTime,h->field,h->usage,h->budget,h->finalPrice,l?l->name:"Laptop da xoa");
-    }
-    if(!historyCount) puts("Chua co lich su.");
-}
 void mainMenu(void)  {
     int ch;
     do  {
@@ -604,10 +457,8 @@ void mainMenu(void)  {
         puts("7. Xem danh sach laptop");
         puts("8. So sanh 2 laptop");
         puts("9. Quan ly tieu chi rieng");
-        puts("10. Quan ly yeu thich");
-        puts("11. Xem lich su tu van");
         puts("0. Thoat");
-        ch=readInt("Chon chuc nang: ",0,11);
+        ch=readInt("Chon chuc nang: ",0,9);
         switch(ch)  {
             case 1: consult();
             break;
@@ -626,10 +477,6 @@ void mainMenu(void)  {
             case 8: compareLaptops();
             break;
             case 9: manageCriteria();
-            break;
-            case 10: manageFavorites();
-            break;
-            case 11: viewHistory();
             break;
         }
         if(ch!=0) pauseEnter();
