@@ -1,4 +1,3 @@
-/* Thu vien can thiet cho nhap/xuat, chuoi, file va thoi gian. */
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
