@@ -297,7 +297,6 @@ int scoreLaptop(const Laptop *l, int field, int usage)  {
     if(field==1 && (containsIgnoreCase(l->cpu,"i5")||containsIgnoreCase(l->cpu,"Ryzen 5")||containsIgnoreCase(l->cpu,"M2"))) score+=1;
     if(field==2 && (containsIgnoreCase(l->gpu,"RTX")||containsIgnoreCase(l->screen,"OLED"))) score+=2;
     if(field==3 && l->weight[0] && (l->weight[0]=='1')) score+=1;
-    for(int i=0;i<criterionCount;i++) if(matchesCriterion(l,&criteria[i])) score += criteria[i].weight;
     return score;
 }
 void consult(void)  {
